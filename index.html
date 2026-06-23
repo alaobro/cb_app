@@ -72,7 +72,6 @@
                   <th>Status</th>
                   <th>Tax</th>
                   <th>Comment</th>
-                  <th>Detail</th>
                 </tr>
               </thead>
               <tbody id="batchBody"></tbody>
@@ -259,8 +258,12 @@
         </label>
         <label>
           Default Categories
-          <select id="supplierCategoryInput" multiple></select>
+          <div id="supplierCategoryInput" class="checkbox-group"></div>
         </label>
+        <div class="add-category-row">
+          <input id="newCategoryInput" type="text" placeholder="Add category, e.g. Smallgoods" />
+          <button id="addCategoryBtn" type="button" class="secondary-button">Add Category</button>
+        </div>
         <label>
           Default Tax
           <select id="supplierTaxInput"></select>

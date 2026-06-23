@@ -1,4 +1,4 @@
-const CATEGORIES = ["Beef", "Lamb", "Poultry", "Seafood", "Other Frozen Product", "Other"];
+﻿const DEFAULT_CATEGORIES = ["Beef", "Lamb", "Poultry", "Seafood", "Other Frozen Product", "Other"];
 const STATUSES = ["Unpaid", "Paid", "Part Paid", "Flagged", "Void"];
 const TAX_TYPES = ["GST-Free", "GST Included", "GST Excluded", "No Tax / Out of Scope"];
 const UNITS = ["kg", "each", "bag", "box"];
@@ -32,6 +32,7 @@ let activeDetail = null;
 let activeSupplierId = null;
 let registerPage = 1;
 let registerSort = { field: "date", direction: "desc" };
+let openCategoryPickerRowId = null;
 
 const el = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -81,6 +82,8 @@ const el = {
   supplierDialogTitle: document.querySelector("#supplierDialogTitle"),
   supplierNameInput: document.querySelector("#supplierNameInput"),
   supplierCategoryInput: document.querySelector("#supplierCategoryInput"),
+  newCategoryInput: document.querySelector("#newCategoryInput"),
+  addCategoryBtn: document.querySelector("#addCategoryBtn"),
   supplierTaxInput: document.querySelector("#supplierTaxInput"),
   supplierContactInput: document.querySelector("#supplierContactInput"),
   supplierNotesInput: document.querySelector("#supplierNotesInput"),
@@ -139,6 +142,13 @@ function bindEvents() {
   el.generateReportBtn.addEventListener("click", renderReport);
   el.addSupplierBtn.addEventListener("click", () => openSupplierDialog());
   el.saveSupplierBtn.addEventListener("click", saveSupplierFromDialog);
+  el.addCategoryBtn.addEventListener("click", addCategoryFromSupplierDialog);
+  el.newCategoryInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addCategoryFromSupplierDialog();
+    }
+  });
   el.saveSettingsBtn.addEventListener("click", saveSettings);
   el.addLineItemBtn.addEventListener("click", addLineItemToDetail);
   el.saveDetailBtn.addEventListener("click", saveDetail);
@@ -148,25 +158,36 @@ function bindEvents() {
 
 function fillStaticSelects() {
   fillSelect(el.registerStatus, ["All Statuses", ...STATUSES]);
-  fillSelect(el.registerCategory, ["All Categories", ...CATEGORIES]);
+  fillSelect(el.registerCategory, ["All Categories", ...getCategories()]);
   fillSelect(el.registerPageSize, ["20 per page", "50 per page", "100 per page"], "50 per page");
   fillSelect(el.reportType, REPORT_TYPES);
-  fillSelect(el.reportCategory, ["All Categories", ...CATEGORIES]);
+  fillSelect(el.reportCategory, ["All Categories", ...getCategories()]);
   fillSelect(el.reportStatus, ["All Statuses", ...STATUSES]);
   fillSelect(el.reportChartType, ["Table Only", "Bar Chart", "Pie Chart", "Bar + Pie"], "Bar Chart");
   fillSelect(el.defaultStatus, STATUSES, state.settings.defaultStatus);
   fillSelect(el.defaultTax, TAX_TYPES, state.settings.defaultTax);
   fillSelect(el.defaultUnit, UNITS, state.settings.defaultUnit);
   fillSelect(el.supplierTaxInput, TAX_TYPES);
-  fillSelect(el.supplierCategoryInput, CATEGORIES);
+  renderCheckboxGroup(el.supplierCategoryInput, getCategories(), "supplier-category");
 }
 
 function renderAll() {
+  refreshCategoryControls();
   renderBatch();
   renderRegisterFilters();
   renderRegister();
   renderSupplierList();
   renderReport();
+}
+
+function getCategories() {
+  return state?.settings?.categories?.length ? state.settings.categories : DEFAULT_CATEGORIES;
+}
+
+function refreshCategoryControls() {
+  fillSelect(el.registerCategory, ["All Categories", ...getCategories()], el.registerCategory.value || "All Categories");
+  fillSelect(el.reportCategory, ["All Categories", ...getCategories()], el.reportCategory.value || "All Categories");
+  renderCheckboxGroup(el.supplierCategoryInput, getCategories(), "supplier-category");
 }
 
 function setTab(tab) {
@@ -183,26 +204,28 @@ function renderBatch() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td><input type="date" data-field="date" value="${escapeAttr(row.date)}"></td>
-      <td>
-        <input list="supplierOptions" data-field="supplierName" value="${escapeAttr(row.supplierName)}" placeholder="Type supplier">
+      <td class="supplier-cell">
+        <input data-field="supplierName" value="${escapeAttr(row.supplierName)}" placeholder="Type supplier" autocomplete="off">
+        <div class="supplier-suggestions" data-supplier-suggestions></div>
       </td>
       <td><input data-field="invoiceNumber" value="${escapeAttr(row.invoiceNumber)}"></td>
       <td><input type="number" min="0" step="0.01" data-field="amount" value="${escapeAttr(row.amount)}"></td>
       <td><input type="number" min="0" step="0.01" data-field="payableAmount" value="${escapeAttr(row.payableAmount)}"></td>
-      <td>${selectHtml("category", CATEGORIES, row.category)}</td>
+      <td class="category-cell">
+        <button class="mini-button category-picker-button" data-action="category-picker">${categoryPickerLabel(row)}</button>
+        <div class="row-warning" data-warning>${escapeHtml(duplicateWarning)}</div>
+        <div class="category-picker ${openCategoryPickerRowId === row.id ? "show" : ""}" data-category-picker>${categoryPickerHtml(row)}</div>
+      </td>
       <td>${selectHtml("status", STATUSES, row.status)}</td>
       <td>${selectHtml("taxType", TAX_TYPES, row.taxType)}</td>
       <td><textarea rows="1" data-field="comment">${escapeHtml(row.comment)}</textarea></td>
-      <td>
-        <button class="mini-button" data-action="detail">Detail</button>
-        <div class="row-warning" data-warning>${escapeHtml(duplicateWarning)}</div>
-      </td>
     `;
     tr.querySelectorAll("[data-field]").forEach((input) => {
       input.addEventListener("input", () => updateBatchRow(index, input.dataset.field, input.value));
       input.addEventListener("change", () => updateBatchRow(index, input.dataset.field, input.value));
     });
-    tr.querySelector('[data-action="detail"]').addEventListener("click", () => openDetail("batch", row.id));
+    attachSupplierAutocomplete(tr.querySelector('[data-field="supplierName"]'), index);
+    attachCategoryPicker(tr, index);
     el.batchBody.appendChild(tr);
   });
   ensureSupplierDatalist();
@@ -218,7 +241,6 @@ function updateBatchRow(index, field, value) {
     if (supplier) {
       row.supplierId = supplier.id;
       if (!row.category && supplier.categories.length === 1) row.category = supplier.categories[0];
-      if (supplier.categories.length > 1 && !row.category) row.category = supplier.categories[0];
       row.taxType = supplier.taxType || state.settings.defaultTax;
       renderBatch();
       return;
@@ -236,27 +258,167 @@ function updateBatchRow(index, field, value) {
   updateBatchSummary();
 }
 
+function attachSupplierAutocomplete(input, index) {
+  if (!input) return;
+  const suggestions = input.closest(".supplier-cell")?.querySelector("[data-supplier-suggestions]");
+  if (!suggestions) return;
+
+  const renderSuggestions = () => {
+    const query = input.value.trim().toLowerCase();
+    const matches = state.suppliers
+      .filter((supplier) => !query || supplier.name.toLowerCase().includes(query))
+      .slice(0, 8);
+    suggestions.innerHTML = matches
+      .map((supplier) => `<button type="button" class="supplier-suggestion" data-supplier-id="${escapeAttr(supplier.id)}">${escapeHtml(supplier.name)}</button>`)
+      .join("");
+    suggestions.classList.toggle("show", matches.length > 0 && document.activeElement === input);
+  };
+
+  input.addEventListener("focus", renderSuggestions);
+  input.addEventListener("input", renderSuggestions);
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => suggestions.classList.remove("show"), 120);
+  });
+  suggestions.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+  suggestions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-supplier-id]");
+    if (!button) return;
+    const supplier = state.suppliers.find((item) => item.id === button.dataset.supplierId);
+    if (!supplier) return;
+    const row = batchRows[index];
+    row.supplierId = supplier.id;
+    row.supplierName = supplier.name;
+    if (!row.category && supplier.categories.length === 1) row.category = supplier.categories[0];
+    row.taxType = supplier.taxType || state.settings.defaultTax;
+    suggestions.classList.remove("show");
+    renderBatch();
+  });
+}
+
+function categoryPickerHtml(row) {
+  const selected = selectedCategoryAmounts(row);
+  const selectedCount = selected.length;
+  return `
+    <div class="category-picker-title">Select categories</div>
+    ${getCategories().map((category) => {
+      const item = selected.find((entry) => entry.category === category);
+      const checked = Boolean(item);
+      const amount = item?.amount ?? "";
+      return `
+        <label class="category-option">
+          <span><input type="checkbox" data-category-check="${escapeAttr(category)}" ${checked ? "checked" : ""}> ${escapeHtml(category)}</span>
+          <input class="category-amount" type="number" min="0" step="0.01" data-category-amount="${escapeAttr(category)}" value="${escapeAttr(amount)}" ${selectedCount > 1 && checked ? "" : "disabled"} placeholder="Amount">
+        </label>
+      `;
+    }).join("")}
+    <div class="category-picker-note">${selectedCount > 1 ? "Split amount across selected categories." : "One category uses the full payable amount."}</div>
+  `;
+}
+
+function attachCategoryPicker(tr, index) {
+  const button = tr.querySelector('[data-action="category-picker"]');
+  const picker = tr.querySelector("[data-category-picker]");
+  if (!button || !picker) return;
+
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    const row = batchRows[index];
+    openCategoryPickerRowId = openCategoryPickerRowId === row.id ? null : row.id;
+    document.querySelectorAll(".category-picker.show").forEach((openPicker) => {
+      if (openPicker !== picker) openPicker.classList.remove("show");
+    });
+    picker.classList.toggle("show", openCategoryPickerRowId === row.id);
+  });
+
+  picker.addEventListener("mousedown", (event) => event.stopPropagation());
+  picker.addEventListener("change", (event) => {
+    if (event.target.matches("[data-category-check]")) {
+      updateRowCategoriesFromPicker(index, picker);
+    }
+  });
+  picker.addEventListener("input", (event) => {
+    if (event.target.matches("[data-category-amount]")) {
+      updateRowCategoriesFromPicker(index, picker);
+    }
+  });
+}
+
+function updateRowCategoriesFromPicker(index, picker) {
+  const row = batchRows[index];
+  const checkedCategories = [...picker.querySelectorAll("[data-category-check]:checked")].map((input) => input.dataset.categoryCheck);
+  if (!checkedCategories.length) {
+    row.category = "";
+    row.lineItems = [];
+    openCategoryPickerRowId = row.id;
+    renderBatch();
+    return;
+  }
+  if (checkedCategories.length === 1) {
+    row.category = checkedCategories[0];
+    row.lineItems = [];
+    openCategoryPickerRowId = row.id;
+    renderBatch();
+    return;
+  }
+  row.category = checkedCategories.join(" + ");
+  row.lineItems = checkedCategories.map((category) => {
+    const amountInput = picker.querySelector(`[data-category-amount="${cssEscape(category)}"]`);
+    return {
+      id: uid(),
+      category,
+      product: "",
+      qty: "",
+      unit: state.settings.defaultUnit,
+      unitPrice: "",
+      amount: amountInput?.value || "",
+    };
+  });
+  openCategoryPickerRowId = row.id;
+  renderBatch();
+}
+
+function selectedCategoryAmounts(row) {
+  if (row.lineItems.length) {
+    return row.lineItems.map((line) => ({ category: line.category, amount: line.amount }));
+  }
+  return row.category ? [{ category: row.category, amount: row.payableAmount || row.amount || "" }] : [];
+}
+
+function categoryPickerLabel(row) {
+  const selected = selectedCategoryAmounts(row);
+  if (!selected.length) return "Select";
+  if (selected.length === 1) return selected[0].category;
+  return selected.map((entry) => `${entry.category} ${entry.amount ? money(entry.amount) : ""}`.trim()).join(" + ");
+}
+
 function validateBatchDisplay() {
   const duplicateMap = getBatchDuplicateMap();
   [...el.batchBody.rows].forEach((tr, index) => {
     const row = batchRows[index];
     const active = isActiveBatchRow(row);
     const missing = active ? getMissingFields(row) : [];
-    const duplicateWarning = active ? getDuplicateWarning(row, duplicateMap) : "";
-    tr.classList.toggle("duplicate-row", Boolean(duplicateWarning));
+    const warning = active ? getRowWarning(row, duplicateMap) : "";
+    tr.classList.toggle("duplicate-row", Boolean(warning));
     tr.querySelectorAll("[data-field]").forEach((input) => input.classList.remove("invalid"));
     missing.forEach((field) => {
       const input = tr.querySelector(`[data-field="${field}"]`);
       if (input) input.classList.add("invalid");
     });
-    if (duplicateWarning) {
-      ["supplierName", "invoiceNumber"].forEach((field) => tr.querySelector(`[data-field="${field}"]`)?.classList.add("invalid"));
-      tr.title = duplicateWarning;
+    if (warning) {
+      if (getDuplicateWarning(row, duplicateMap)) {
+        ["supplierName", "invoiceNumber"].forEach((field) => tr.querySelector(`[data-field="${field}"]`)?.classList.add("invalid"));
+      }
+      if (getSplitWarning(row)) {
+        tr.querySelector('[data-action="category-picker"]')?.classList.add("invalid");
+      }
+      tr.title = warning;
     } else {
       tr.removeAttribute("title");
     }
-    const warning = tr.querySelector("[data-warning]");
-    if (warning) warning.textContent = duplicateWarning;
+    const warningNode = tr.querySelector("[data-warning]");
+    if (warningNode) warningNode.textContent = warning;
   });
 }
 
@@ -265,7 +427,7 @@ function updateBatchSummary() {
   const amountTotal = activeRows.reduce((sum, row) => sum + number(row.amount), 0);
   const payableTotal = activeRows.reduce((sum, row) => sum + number(row.payableAmount || row.amount), 0);
   const duplicateMap = getBatchDuplicateMap();
-  const attention = activeRows.filter((row) => getMissingFields(row).length > 0 || getDuplicateWarning(row, duplicateMap)).length;
+  const attention = activeRows.filter((row) => getMissingFields(row).length > 0 || getDuplicateWarning(row, duplicateMap) || getSplitWarning(row)).length;
   el.unsavedCount.textContent = activeRows.length;
   el.batchTotal.textContent = money(amountTotal);
   el.batchPayable.textContent = money(payableTotal);
@@ -276,7 +438,7 @@ function updateBatchSummary() {
 function saveBatch() {
   const activeRows = batchRows.filter(isActiveBatchRow);
   const duplicateMap = getBatchDuplicateMap();
-  const validRows = activeRows.filter((row) => getMissingFields(row).length === 0 && !getDuplicateWarning(row, duplicateMap));
+  const validRows = activeRows.filter((row) => getMissingFields(row).length === 0 && !getDuplicateWarning(row, duplicateMap) && !getSplitWarning(row));
   const invalidRows = activeRows.length - validRows.length;
   if (!validRows.length) {
     showToast("No complete invoice rows to save.");
@@ -345,7 +507,7 @@ function renderRegister() {
       <td>${escapeHtml(invoice.invoiceNumber)}</td>
       <td>${money(invoice.amount)}</td>
       <td>${money(invoice.payableAmount)}</td>
-      <td>${escapeHtml(invoice.category)}</td>
+      <td>${escapeHtml(invoiceCategoryLabel(invoice))}</td>
       <td>${statusPill(invoice.status)}</td>
       <td>${escapeHtml(invoice.taxType)}</td>
       <td>${escapeHtml(invoice.comment)}</td>
@@ -377,12 +539,39 @@ function filterInvoices(filters) {
     const haystack = `${invoice.supplierName} ${invoice.invoiceNumber} ${invoice.comment}`.toLowerCase();
     if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
     if (filters.status && filters.status !== "All Statuses" && invoice.status !== filters.status) return false;
-    if (filters.category && filters.category !== "All Categories" && invoice.category !== filters.category) return false;
+    if (filters.category && filters.category !== "All Categories" && !invoiceHasCategory(invoice, filters.category)) return false;
     if (filters.supplier && filters.supplier !== "All Suppliers" && invoice.supplierName !== filters.supplier) return false;
     if (filters.from && invoice.date < filters.from) return false;
     if (filters.to && invoice.date > filters.to) return false;
     return true;
   });
+}
+
+function invoiceCategories(invoice) {
+  const lineCategories = (invoice.lineItems || []).map((line) => normalizeCategory(line.category)).filter(Boolean);
+  const categories = unique(lineCategories.length ? lineCategories : [normalizeCategory(invoice.category)]);
+  return categories.filter((category) => getCategories().includes(category));
+}
+
+function invoiceCategoryLabel(invoice) {
+  const categories = invoiceCategories(invoice);
+  if (!categories.length) return "";
+  return categories.join(" + ");
+}
+
+function invoiceHasCategory(invoice, category) {
+  return invoiceCategories(invoice).includes(category);
+}
+
+function detailCategoryLabel(row) {
+  if (!row.lineItems.length) return "Add Split";
+  const categories = invoiceCategories(row);
+  if (categories.length) return categories.join(" + ");
+  return `${row.lineItems.length} line${row.lineItems.length === 1 ? "" : "s"}`;
+}
+
+function normalizeCategory(category) {
+  return category === "Mixed" ? "" : category;
 }
 
 function getRegisterPageSize() {
@@ -396,6 +585,10 @@ function sortInvoices(invoices) {
   return invoices.slice().sort((a, b) => {
     let left = a[field] ?? "";
     let right = b[field] ?? "";
+    if (field === "category") {
+      left = invoiceCategoryLabel(a);
+      right = invoiceCategoryLabel(b);
+    }
     if (field === "amount" || field === "payableAmount") {
       left = number(left);
       right = number(right);
@@ -408,10 +601,10 @@ function sortInvoices(invoices) {
 function renderRegisterSortHeaders() {
   document.querySelectorAll(".sort-header").forEach((button) => {
     const active = button.dataset.sort === registerSort.field;
-    const base = button.dataset.label || button.textContent.replace(/[▲▼]/g, "").trim();
+    const base = button.dataset.label || button.textContent.replace(/\s+(ASC|DESC)$/g, "").trim();
     button.dataset.label = base;
     button.classList.toggle("active", active);
-    button.textContent = active ? `${base} ${registerSort.direction === "asc" ? "▲" : "▼"}` : base;
+    button.textContent = active ? `${base} ${registerSort.direction === "asc" ? "ASC" : "DESC"}` : base;
   });
 }
 
@@ -479,7 +672,7 @@ function renderReport() {
   const type = el.reportType.value;
   let chartRows = [];
   if (type === "Category Spend") {
-    chartRows = groupBy(invoices, "category");
+    chartRows = groupByCategoryLines(invoices);
     html += chartPanel(chartRows, "Category Spend");
     html += reportTable(["Category", "Invoices", "Invoice Amount", "Payable Amount"], chartRows);
   } else if (type === "Supplier Spend") {
@@ -518,6 +711,25 @@ function groupBy(invoices, field) {
     amount: items.reduce((sum, invoice) => sum + number(invoice.amount), 0),
     payable: items.reduce((sum, invoice) => sum + number(invoice.payableAmount), 0),
   }));
+}
+
+function groupByCategoryLines(invoices) {
+  const grouped = new Map();
+  invoices.forEach((invoice) => {
+    const lines = (invoice.lineItems || []).length
+      ? invoice.lineItems
+      : [{ category: invoice.category, amount: invoice.payableAmount || invoice.amount }];
+    lines.forEach((line) => {
+      const category = normalizeCategory(line.category);
+      if (!category || !getCategories().includes(category)) return;
+      if (!grouped.has(category)) grouped.set(category, { label: category, count: 0, amount: 0, payable: 0 });
+      const row = grouped.get(category);
+      row.count += 1;
+      row.amount += number(line.amount);
+      row.payable += number(line.amount);
+    });
+  });
+  return [...grouped.values()];
 }
 
 function reportTable(headers, rows) {
@@ -630,7 +842,7 @@ function invoiceListTable(invoices) {
         <td>${formatDate(invoice.date)}</td>
         <td>${escapeHtml(invoice.supplierName)}</td>
         <td>${escapeHtml(invoice.invoiceNumber)}</td>
-        <td>${escapeHtml(invoice.category)}</td>
+        <td>${escapeHtml(invoiceCategoryLabel(invoice))}</td>
         <td>${money(invoice.amount)}</td>
         <td>${money(invoice.payableAmount)}</td>
         <td>${statusPill(invoice.status)}</td>
@@ -676,15 +888,15 @@ function openSupplierDialog(id = null) {
   el.supplierTaxInput.value = supplier?.taxType || state.settings.defaultTax;
   el.supplierContactInput.value = supplier?.contact || "";
   el.supplierNotesInput.value = supplier?.notes || "";
-  [...el.supplierCategoryInput.options].forEach((option) => {
-    option.selected = supplier ? supplier.categories.includes(option.value) : false;
+  el.supplierCategoryInput.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = supplier ? supplier.categories.includes(input.value) : false;
   });
   el.supplierDialog.showModal();
 }
 
 function saveSupplierFromDialog() {
   const name = el.supplierNameInput.value.trim();
-  const categories = [...el.supplierCategoryInput.selectedOptions].map((option) => option.value);
+  const categories = selectedCheckboxValues(el.supplierCategoryInput);
   if (!name || !categories.length) {
     showToast("Supplier name and at least one category are required.");
     return;
@@ -708,6 +920,40 @@ function saveSupplierFromDialog() {
   showToast("Supplier saved.");
 }
 
+function addCategoryFromSupplierDialog() {
+  const name = cleanCategoryName(el.newCategoryInput.value);
+  if (!name) {
+    showToast("Enter a category name.");
+    return;
+  }
+  const existing = getCategories().find((category) => category.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    el.supplierCategoryInput.querySelector(`input[value="${cssEscape(existing)}"]`)?.click();
+    el.newCategoryInput.value = "";
+    showToast(`${existing} already exists.`);
+    return;
+  }
+  state.settings.categories = [...getCategories(), name];
+  saveState();
+  const selected = selectedCheckboxValues(el.supplierCategoryInput);
+  renderCheckboxGroup(el.supplierCategoryInput, getCategories(), "supplier-category");
+  el.supplierCategoryInput.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = selected.includes(input.value) || input.value === name;
+  });
+  el.newCategoryInput.value = "";
+  fillSelect(el.registerCategory, ["All Categories", ...getCategories()], el.registerCategory.value || "All Categories");
+  fillSelect(el.reportCategory, ["All Categories", ...getCategories()], el.reportCategory.value || "All Categories");
+  renderBatch();
+  renderRegisterFilters();
+  renderRegister();
+  renderReport();
+  showToast(`Added category ${name}.`);
+}
+
+function cleanCategoryName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
 function openDetail(source, id) {
   activeDetail = { source, id };
   const item = source === "batch" ? batchRows.find((row) => row.id === id) : state.invoices.find((invoice) => invoice.id === id);
@@ -718,7 +964,7 @@ function openDetail(source, id) {
   el.detailAmount.value = money(number(item.amount));
   el.detailPayable.value = money(number(item.payableAmount || item.amount));
   if (!item.lineItems.length) {
-    item.lineItems.push({ id: uid(), category: item.category || CATEGORIES[0], product: "", qty: "", unit: state.settings.defaultUnit, unitPrice: "", amount: item.amount || "" });
+    item.lineItems.push({ id: uid(), category: item.category || getCategories()[0], product: "", qty: "", unit: state.settings.defaultUnit, unitPrice: "", amount: item.amount || "" });
   }
   renderLineItems(item);
   el.detailDialog.showModal();
@@ -729,7 +975,7 @@ function renderLineItems(item) {
   item.lineItems.forEach((line, index) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${selectHtml("category", CATEGORIES, line.category)}</td>
+      <td>${selectHtml("category", getCategories(), line.category)}</td>
       <td><input data-field="product" value="${escapeAttr(line.product || "")}"></td>
       <td><input type="number" min="0" step="0.001" data-field="qty" value="${escapeAttr(line.qty)}"></td>
       <td>${selectHtml("unit", UNITS, line.unit || state.settings.defaultUnit)}</td>
@@ -760,7 +1006,7 @@ function renderLineItems(item) {
 function addLineItemToDetail() {
   const item = getActiveDetailItem();
   if (!item) return;
-  item.lineItems.push({ id: uid(), category: item.category || CATEGORIES[0], product: "", qty: "", unit: state.settings.defaultUnit, unitPrice: "", amount: "" });
+  item.lineItems.push({ id: uid(), category: item.category || getCategories()[0], product: "", qty: "", unit: state.settings.defaultUnit, unitPrice: "", amount: "" });
   renderLineItems(item);
 }
 
@@ -771,7 +1017,7 @@ function saveDetail() {
   if (lineTotal > 0) {
     item.amount = round(lineTotal);
     if (!item.payableEdited && activeDetail.source === "batch") item.payableAmount = item.amount;
-    item.category = unique(item.lineItems.map((line) => line.category)).length > 1 ? "Mixed" : item.lineItems[0].category;
+    item.category = invoiceCategoryLabel(item);
   }
   if (activeDetail.source === "saved") {
     item.updatedAt = new Date().toISOString();
@@ -888,6 +1134,23 @@ function getDuplicateWarning(row, batchDuplicateMap) {
   return "";
 }
 
+function getSplitWarning(row) {
+  if (!row.lineItems.length) return "";
+  const splitTotal = row.lineItems.reduce((sum, line) => sum + number(line.amount), 0);
+  const target = number(row.payableAmount || row.amount);
+  if (target <= 0) return "";
+  const difference = round(splitTotal - target);
+  if (Math.abs(difference) <= 0.01) return "";
+  if (difference > 0) {
+    return `Split total is ${money(splitTotal)}, ${money(difference)} over invoice amount.`;
+  }
+  return `Split total is ${money(splitTotal)}, ${money(Math.abs(difference))} under invoice amount.`;
+}
+
+function getRowWarning(row, batchDuplicateMap) {
+  return [getDuplicateWarning(row, batchDuplicateMap), getSplitWarning(row)].filter(Boolean).join(" ");
+}
+
 function duplicateKey(item) {
   const supplier = (item.supplierName || "").trim().toLowerCase();
   const invoiceNumber = (item.invoiceNumber || "").trim().toLowerCase();
@@ -904,11 +1167,12 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return {
+      const loaded = {
         invoices: parsed.invoices || [],
         suppliers: parsed.suppliers?.length ? parsed.suppliers : seedSuppliers,
         settings: { ...defaultSettings(), ...(parsed.settings || {}) },
       };
+      return migrateState(loaded);
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
@@ -916,12 +1180,53 @@ function loadState() {
   return { invoices: [], suppliers: seedSuppliers, settings: defaultSettings() };
 }
 
+function migrateState(loaded) {
+  let changed = false;
+  const categories = new Set([...(loaded.settings.categories || DEFAULT_CATEGORIES)]);
+  loaded.suppliers.forEach((supplier) => (supplier.categories || []).forEach((category) => categories.add(category)));
+  loaded.invoices.forEach((invoice) => {
+    if (invoice.category && invoice.category !== "Mixed") {
+      invoice.category.split(" + ").forEach((category) => categories.add(category));
+    }
+    (invoice.lineItems || []).forEach((line) => {
+      if (line.category && line.category !== "Mixed") categories.add(line.category);
+    });
+  });
+  const nextCategories = [...categories].map(cleanCategoryName).filter(Boolean);
+  if (JSON.stringify(loaded.settings.categories || []) !== JSON.stringify(nextCategories)) {
+    loaded.settings.categories = nextCategories;
+    changed = true;
+  }
+  loaded.invoices = loaded.invoices.map((invoice) => {
+    const next = { ...invoice, lineItems: invoice.lineItems || [] };
+    if (next.category === "Mixed") {
+      const label = unique(next.lineItems.map((line) => line.category).filter((category) => category && category !== "Mixed")).join(" + ");
+      if (label) {
+        next.category = label;
+        changed = true;
+      }
+    }
+    next.lineItems = next.lineItems.map((line) => {
+      if (line.category === "Mixed") {
+        changed = true;
+        return { ...line, category: "Beef" };
+      }
+      return line;
+    });
+    return next;
+  });
+  if (changed) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+  }
+  return loaded;
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 function defaultSettings() {
-  return { defaultStatus: "Unpaid", defaultTax: "GST-Free", defaultUnit: "kg" };
+  return { defaultStatus: "Unpaid", defaultTax: "GST-Free", defaultUnit: "kg", categories: DEFAULT_CATEGORIES };
 }
 
 function setDefaultDates() {
@@ -944,6 +1249,21 @@ function ensureSupplierDatalist() {
 function fillSelect(select, options, selected = "") {
   select.innerHTML = options.map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`).join("");
   if (selected) select.value = selected;
+}
+
+function renderCheckboxGroup(container, options, name) {
+  container.innerHTML = options
+    .map((option) => `
+      <label class="checkbox-option">
+        <input type="checkbox" name="${escapeAttr(name)}" value="${escapeAttr(option)}">
+        <span>${escapeHtml(option)}</span>
+      </label>
+    `)
+    .join("");
+}
+
+function selectedCheckboxValues(container) {
+  return [...container.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
 }
 
 function selectHtml(field, options, selected) {
@@ -1014,6 +1334,10 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+
+function cssEscape(value) {
+  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 function showToast(message) {
