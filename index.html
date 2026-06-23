@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CBAPP - Supplier Invoices</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">CB</div>
+          <div>
+            <h1>CBAPP</h1>
+            <p>Supplier invoices</p>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-item active" data-tab="batch">Batch Entry</button>
+          <button class="nav-item" data-tab="register">Invoice Register</button>
+          <button class="nav-item" data-tab="reports">Reports</button>
+          <button class="nav-item" data-tab="suppliers">Suppliers</button>
+          <button class="nav-item" data-tab="settings">Settings</button>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Offline workspace</p>
+            <h2 id="pageTitle">Batch Entry</h2>
+          </div>
+          <div class="topbar-actions">
+            <button id="exportDataBtn" class="ghost-button">Export Data</button>
+            <label class="ghost-button file-button">
+              Import Data
+              <input id="importDataInput" type="file" accept="application/json" />
+            </label>
+          </div>
+        </header>
+
+        <section id="batch" class="tab-panel active">
+          <div class="section-header">
+            <div>
+              <h3>Batch Entry</h3>
+              <p>Enter one invoice per row. Supplier, invoice number, date, amount, and category are required.</p>
+            </div>
+            <div class="button-row">
+              <button id="addRowsBtn" class="secondary-button">Add 5 Rows</button>
+              <button id="saveBatchBtn" class="primary-button">Save All</button>
+            </div>
+          </div>
+
+          <div class="summary-strip">
+            <div><span>Unsaved Rows</span><strong id="unsavedCount">0</strong></div>
+            <div><span>Total Amount</span><strong id="batchTotal">$0.00</strong></div>
+            <div><span>Payable Total</span><strong id="batchPayable">$0.00</strong></div>
+            <div><span>Need Attention</span><strong id="attentionCount">0</strong></div>
+          </div>
+
+          <div class="table-wrap entry-wrap">
+            <table class="data-table entry-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Supplier</th>
+                  <th>Inv Number</th>
+                  <th>Amount</th>
+                  <th>Payable</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Tax</th>
+                  <th>Comment</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="batchBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="register" class="tab-panel">
+          <div class="section-header">
+            <div>
+              <h3>Invoice Register</h3>
+              <p>Search, filter, edit status, and open detailed line items for saved invoices.</p>
+            </div>
+          </div>
+          <div class="filters">
+            <input id="registerSearch" type="search" placeholder="Search supplier, invoice number, comment" />
+            <select id="registerStatus"></select>
+            <select id="registerCategory"></select>
+            <input id="registerFrom" type="date" />
+            <input id="registerTo" type="date" />
+            <select id="registerPageSize"></select>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th><button class="sort-header" data-sort="date">Date</button></th>
+                  <th><button class="sort-header" data-sort="supplierName">Supplier</button></th>
+                  <th><button class="sort-header" data-sort="invoiceNumber">Inv Number</button></th>
+                  <th><button class="sort-header" data-sort="amount">Amount</button></th>
+                  <th><button class="sort-header" data-sort="payableAmount">Payable</button></th>
+                  <th><button class="sort-header" data-sort="category">Category</button></th>
+                  <th><button class="sort-header" data-sort="status">Status</button></th>
+                  <th>Tax</th>
+                  <th>Comment</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="registerBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-bar">
+            <span id="registerPageInfo">0 invoices</span>
+            <div class="button-row">
+              <button id="registerPrevPage" class="secondary-button">Previous</button>
+              <button id="registerNextPage" class="secondary-button">Next</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="reports" class="tab-panel">
+          <div class="section-header">
+            <div>
+              <h3>Reports</h3>
+              <p>Generate reports by time period, supplier, product category, and payment status.</p>
+            </div>
+          </div>
+          <div class="filters report-controls">
+            <select id="reportType"></select>
+            <input id="reportFrom" type="date" />
+            <input id="reportTo" type="date" />
+            <select id="reportSupplier"></select>
+            <select id="reportCategory"></select>
+            <select id="reportStatus"></select>
+            <select id="reportChartType"></select>
+            <button id="generateReportBtn" class="primary-button">Generate</button>
+          </div>
+          <div id="reportOutput" class="report-output"></div>
+        </section>
+
+        <section id="suppliers" class="tab-panel">
+          <div class="section-header">
+            <div>
+              <h3>Suppliers</h3>
+              <p>Set supplier defaults so batch entry fills category and tax automatically.</p>
+            </div>
+            <button id="addSupplierBtn" class="primary-button">Add Supplier</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Default Categories</th>
+                  <th>Default Tax</th>
+                  <th>Contact</th>
+                  <th>Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="supplierBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="settings" class="tab-panel">
+          <div class="section-header">
+            <div>
+              <h3>Settings</h3>
+              <p>Set defaults for new supplier invoice rows.</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <label>
+              Default Status
+              <select id="defaultStatus"></select>
+            </label>
+            <label>
+              Default Tax
+              <select id="defaultTax"></select>
+            </label>
+            <label>
+              Default Unit
+              <select id="defaultUnit"></select>
+            </label>
+            <button id="saveSettingsBtn" class="primary-button">Save Settings</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="detailDialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Invoice detail</p>
+            <h3 id="detailTitle">Line Items</h3>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Close">×</button>
+        </div>
+        <div class="detail-grid">
+          <label>
+            Supplier
+            <input id="detailSupplier" type="text" readonly />
+          </label>
+          <label>
+            Invoice Number
+            <input id="detailNumber" type="text" readonly />
+          </label>
+          <label>
+            Amount
+            <input id="detailAmount" type="text" readonly />
+          </label>
+          <label>
+            Payable
+            <input id="detailPayable" type="text" readonly />
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Unit Price</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="lineItemBody"></tbody>
+          </table>
+        </div>
+        <div class="dialog-actions">
+          <button id="addLineItemBtn" type="button" class="secondary-button">Add Line</button>
+          <button id="saveDetailBtn" type="button" class="primary-button">Save Detail</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="supplierDialog">
+      <form method="dialog" class="dialog-card narrow">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Supplier</p>
+            <h3 id="supplierDialogTitle">Add Supplier</h3>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Close">×</button>
+        </div>
+        <label>
+          Supplier Name
+          <input id="supplierNameInput" type="text" />
+        </label>
+        <label>
+          Default Categories
+          <select id="supplierCategoryInput" multiple></select>
+        </label>
+        <label>
+          Default Tax
+          <select id="supplierTaxInput"></select>
+        </label>
+        <label>
+          Contact
+          <input id="supplierContactInput" type="text" />
+        </label>
+        <label>
+          Notes
+          <textarea id="supplierNotesInput" rows="3"></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button id="saveSupplierBtn" type="button" class="primary-button">Save Supplier</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

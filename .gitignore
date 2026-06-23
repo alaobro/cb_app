@@ -1,0 +1,19 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs and local runtime files
+*.log
+*.tmp
+
+# Dependencies/build output for later app packaging
+node_modules/
+dist/
+build/
+out/
+
+# Local environment files
+.env
+.env.*
+
