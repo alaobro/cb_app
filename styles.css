@@ -453,13 +453,13 @@ button {
 
 .pie-layout {
   display: grid;
-  grid-template-columns: 180px minmax(260px, 420px);
-  gap: 18px;
+  grid-template-columns: minmax(130px, 170px) minmax(0, 1fr);
+  gap: 14px;
   align-items: center;
 }
 
 .pie-chart {
-  width: 180px;
+  width: min(170px, 100%);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 1px solid var(--line);
@@ -472,8 +472,8 @@ button {
 
 .legend-row {
   display: grid;
-  grid-template-columns: 12px minmax(120px, 1fr) 42px 92px;
-  gap: 8px;
+  grid-template-columns: 12px minmax(0, 1fr) 38px minmax(72px, auto);
+  gap: 6px;
   align-items: center;
 }
 
@@ -487,6 +487,7 @@ button {
   color: var(--muted);
   font-size: 12px;
   text-align: right;
+  white-space: nowrap;
 }
 
 .pagination-bar {
