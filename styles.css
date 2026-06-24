@@ -94,6 +94,47 @@ button {
   gap: 6px;
 }
 
+.module-nav {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+
+.module-group {
+  display: grid;
+  gap: 6px;
+}
+
+.module-nav-item {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #dfe8e1;
+  padding: 12px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.module-nav-item:hover,
+.module-nav-item.active {
+  background: #dce7dd;
+  color: #18221f;
+}
+
+.workspace-nav {
+  display: none;
+  margin-left: 10px;
+  margin-bottom: 8px;
+  padding-left: 10px;
+  border-left: 1px solid #34423d;
+}
+
+.workspace-nav.active {
+  display: grid;
+}
+
 .nav-item {
   width: 100%;
   border: 0;
@@ -365,6 +406,137 @@ button {
   min-height: auto;
 }
 
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.customer-product-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.95fr);
+  gap: 12px;
+}
+
+.customer-product-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.customer-product-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px auto;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.customer-product-name {
+  min-width: 0;
+}
+
+.customer-product-name strong,
+.customer-product-name span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.customer-product-name span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.customer-product-option label {
+  gap: 3px;
+  min-width: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.customer-product-option input[type="number"] {
+  width: 100%;
+  min-height: 32px;
+}
+
+.empty-state {
+  margin: 0;
+}
+
+.field-caption {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.customer-product-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.product-picker-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.product-picker-option {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.product-picker-option:hover {
+  border-color: var(--accent);
+}
+
+.product-picker-option strong,
+.product-picker-option span {
+  overflow-wrap: anywhere;
+}
+
+.product-picker-option span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-manager {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.category-manager input {
+  background: #ffffff;
+}
+
+.danger-button {
+  color: var(--bad);
+}
+
 .add-category-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -390,6 +562,10 @@ button {
 }
 
 .supplier-cell {
+  position: relative;
+}
+
+.customer-search-cell {
   position: relative;
 }
 
@@ -427,6 +603,17 @@ button {
 
 .supplier-suggestion:hover {
   background: var(--soft);
+}
+
+.supplier-suggestion.add-new {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.customer-search-cell .supplier-suggestions {
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
 }
 
 .category-cell {
@@ -551,6 +738,21 @@ button {
 .status-void {
   background: #e7e8e5;
   color: #5b625e;
+}
+
+.status-draft {
+  background: #edf0ee;
+  color: #5b625e;
+}
+
+.status-sent {
+  background: #e4eef7;
+  color: #1d5a85;
+}
+
+.status-overdue {
+  background: #fde8e5;
+  color: var(--bad);
 }
 
 .filters {
@@ -737,12 +939,73 @@ label {
   white-space: nowrap;
 }
 
+.text-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.text-link-button:hover {
+  text-decoration: underline;
+}
+
+.status-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.status-button:hover .status-pill {
+  box-shadow: 0 0 0 2px rgba(31, 111, 91, 0.18);
+}
+
+.payment-cell {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 170px;
+}
+
+.payment-cell input {
+  min-height: 30px;
+  padding: 5px 7px;
+}
+
+.log-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.log-section h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
 dialog {
   width: min(960px, calc(100vw - 32px));
   border: 0;
   border-radius: 10px;
   padding: 0;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+#customerInvoiceDialog {
+  width: min(1280px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+}
+
+#customerDialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
 }
 
 dialog::backdrop {
@@ -753,10 +1016,45 @@ dialog::backdrop {
   display: grid;
   gap: 14px;
   padding: 18px;
+  box-sizing: border-box;
 }
 
 .dialog-card.narrow {
   width: min(520px, calc(100vw - 32px));
+}
+
+.customer-dialog-card {
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  padding-right: 24px;
+}
+
+.customer-dialog-card .dialog-header,
+.customer-dialog-card label:has(.customer-product-editor),
+.customer-dialog-card label:has(#customerNotesInput),
+.customer-dialog-card .dialog-actions {
+  grid-column: 1 / -1;
+}
+
+.invoice-dialog {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.invoice-dialog .dialog-actions {
+  position: sticky;
+  bottom: -18px;
+  justify-content: flex-end;
+  margin: 0 -18px -18px;
+  border-top: 1px solid var(--line);
+  background: #ffffff;
+  padding: 12px 18px;
 }
 
 .dialog-header {
@@ -774,6 +1072,106 @@ dialog::backdrop {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+}
+
+.invoice-builder {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.invoice-builder .table-wrap {
+  max-height: 44vh;
+  overflow: auto;
+}
+
+.invoice-builder .data-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.invoice-builder .data-table th:nth-child(1),
+.invoice-builder .data-table td:nth-child(1) {
+  width: 32%;
+}
+
+.invoice-builder .data-table th:nth-child(2),
+.invoice-builder .data-table td:nth-child(2),
+.invoice-builder .data-table th:nth-child(3),
+.invoice-builder .data-table td:nth-child(3) {
+  width: 13%;
+}
+
+.invoice-builder .data-table th:nth-child(4),
+.invoice-builder .data-table td:nth-child(4),
+.invoice-builder .data-table th:nth-child(5),
+.invoice-builder .data-table td:nth-child(5) {
+  width: 16%;
+}
+
+.invoice-builder .data-table th:nth-child(6),
+.invoice-builder .data-table td:nth-child(6) {
+  width: 10%;
+}
+
+.quick-products {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  max-height: 44vh;
+  overflow: auto;
+  padding: 12px;
+}
+
+.quick-products h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+#ciQuickProducts {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-product-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 8px;
+  text-align: left;
+}
+
+.quick-product-button span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.invoice-total-row {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 22px;
+}
+
+.invoice-total-row span {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.invoice-total-row strong {
+  color: var(--ink);
+  font-size: 22px;
+  text-transform: none;
 }
 
 .toast {
@@ -821,6 +1219,10 @@ dialog::backdrop {
   .metric-grid,
   .chart-grid.two,
   .pie-layout,
+  .invoice-builder,
+  .customer-dialog-card,
+  .customer-product-editor,
+  .customer-product-option,
   .detail-grid,
   .settings-grid,
   .filters,
